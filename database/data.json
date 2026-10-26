@@ -1,0 +1,87 @@
+{
+  "users": [
+    {
+      "id": "usr_auth_1",
+      "name": "National Scholarship Board (Admin)",
+      "email": "authority@scholarchain.gov",
+      "passwordHash": "$2a$10$IMRBQTqnON5MZr06XsmXEO/CSeN6QVQKG0Ft/f/ejNnHLactbHNAi",
+      "role": "authority",
+      "institution": "Ministry of Education",
+      "wallet": "0x90F8bf6A479f320ead074411a4B0e7944Ea8c9C1",
+      "createdAt": "2026-10-26T16:39:03.686Z"
+    },
+    {
+      "id": "usr_col_1",
+      "name": "IIT Madras Verification Office",
+      "email": "college@iitm.ac.in",
+      "passwordHash": "$2a$10$IMRBQTqnON5MZr06XsmXEOCidnLJwYoIZwQz4dANCq3/UGMf2SF1a",
+      "role": "college",
+      "institution": "IIT Madras",
+      "wallet": "0xFFcf8FDEE72ac11b5c542428B35EEF5769C409f0",
+      "createdAt": "2026-10-26T16:39:03.833Z"
+    },
+    {
+      "id": "usr_aud_1",
+      "name": "Comptroller & Auditor General (CAG)",
+      "email": "auditor@cag.gov.in",
+      "passwordHash": "$2a$10$IMRBQTqnON5MZr06XsmXEOgt/ruKmFsC325viC4t.QI0.C9/2JWH.",
+      "role": "auditor",
+      "institution": "Central Audit Bureau",
+      "wallet": "0x22d491Bde2303f2f1be6053930bA1d4fF771bEc4",
+      "createdAt": "2026-10-26T16:39:03.945Z"
+    },
+    {
+      "id": "usr_ora_1",
+      "name": "Income Tax Dept Oracle Node",
+      "email": "oracle@incometax.gov.in",
+      "passwordHash": "$2a$10$IMRBQTqnON5MZr06XsmXEO9SMELaGWVzCUCfOCyntc1bCz2d/qXAe",
+      "role": "oracle",
+      "institution": "CBDT Revenue Oracle",
+      "wallet": "0xE11BA2b4D45Eaed5996Cd0823791E0C93114882d",
+      "createdAt": "2026-10-26T16:39:04.066Z"
+    },
+    {
+      "id": "usr_stu_1",
+      "name": "Arjun Mehta",
+      "email": "arjun@student.in",
+      "passwordHash": "$2a$10$IMRBQTqnON5MZr06XsmXEOIbMZyXbvJZbHe/qEaextDV.BgTbTZSC",
+      "role": "student",
+      "institution": "IIT Madras",
+      "studentId": "CS2025-042",
+      "cgpa": 8.2,
+      "annualIncome": 300000,
+      "wallet": "0xd03ea8624C8C5987235048901fB614fDcA89b117",
+      "createdAt": "2026-10-26T16:39:04.175Z"
+    },
+    {
+      "id": "usr_stu_2",
+      "name": "Priya Sharma",
+      "email": "priya@student.in",
+      "passwordHash": "$2a$10$IMRBQTqnON5MZr06XsmXEOIbMZyXbvJZbHe/qEaextDV.BgTbTZSC",
+      "role": "student",
+      "institution": "NIT Trichy",
+      "studentId": "EE2025-118",
+      "cgpa": 6.2,
+      "annualIncome": 200000,
+      "wallet": "0x95cED97b3779e3c291885470555304b7863d115e",
+      "createdAt": "2026-10-26T16:39:04.280Z"
+    }
+  ],
+  "contracts": [],
+  "activityLogs": [
+    {
+      "userId": "usr_stu_1",
+      "action": "USER_LOGIN",
+      "detail": "Arjun Mehta logged in (student)",
+      "id": "log_1793032817580_n32zp",
+      "timestamp": "2026-10-26T16:40:17.580Z"
+    },
+    {
+      "userId": "usr_auth_1",
+      "action": "USER_LOGIN",
+      "detail": "National Scholarship Board (Admin) logged in (authority)",
+      "id": "log_1793032817481_dq412",
+      "timestamp": "2026-10-26T16:40:17.481Z"
+    }
+  ]
+}

@@ -1,5 +1,23 @@
+# Dependencies
 node_modules/
-database/scholarchain.db
+
+# Environment variables (keep secret)
 .env
-build/
+
+# Database data file (has hashed passwords - OK to commit for demo)
+# database/data.json
+
+# Logs
 *.log
+npm-debug.log*
+
+# Build artifacts (can be regenerated with: node compile.js)
+# build/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE files
+.vscode/
+.idea/
