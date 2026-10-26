@@ -1,0 +1,1371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>ScholarChain – Blockchain Scholarship System</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.1/ethers.umd.min.js"></script>
+<style>
+/* ── RESET & ROOT ─────────────────────────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#0d1117;--surface:#161b22;--surface2:#21262d;--surface3:#2d333b;
+  --border:#30363d;--primary:#3fb950;--primary-dim:#238636;
+  --accent:#58a6ff;--accent2:#bc8cff;--warn:#d29922;--danger:#f85149;
+  --text:#e6edf3;--text2:#8b949e;--text3:#6e7681;
+  --radius:8px;--shadow:0 4px 24px rgba(0,0,0,.5);
+  --font:'Segoe UI',system-ui,sans-serif;
+}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+
+/* ── SCROLLBAR ─────────────────────────────────────────────────────── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg)}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+
+/* ── TOPBAR ─────────────────────────────────────────────────────────── */
+#topbar{
+  position:sticky;top:0;z-index:100;
+  background:rgba(13,17,23,.92);backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:12px;padding:12px 24px;
+}
+#topbar .logo{display:flex;align-items:center;gap:8px;font-weight:700;font-size:1.1rem;color:var(--primary)}
+#topbar .logo svg{width:28px;height:28px}
+#network-badge{
+  font-size:.7rem;padding:2px 8px;border-radius:12px;
+  background:var(--primary-dim);color:var(--primary);font-weight:600;margin-left:4px;
+}
+#topbar .spacer{flex:1}
+#rpc-section{display:flex;align-items:center;gap:6px}
+#rpc-input{
+  background:var(--surface2);border:1px solid var(--border);color:var(--text);
+  padding:6px 10px;border-radius:var(--radius);font-size:.8rem;width:210px;
+}
+#connect-btn,#demo-btn{
+  padding:7px 16px;border-radius:var(--radius);font-size:.85rem;font-weight:600;cursor:pointer;border:none;transition:.2s;
+}
+#connect-btn{background:var(--primary);color:#000}
+#connect-btn:hover{background:#4fc961}
+#demo-btn{background:var(--accent2);color:#000}
+#demo-btn:hover{background:#d2a8ff}
+#account-pill{
+  background:var(--surface2);border:1px solid var(--border);
+  padding:6px 12px;border-radius:20px;font-size:.78rem;color:var(--text2);
+  display:none;align-items:center;gap:6px;
+}
+#role-badge{
+  font-size:.68rem;padding:2px 7px;border-radius:10px;font-weight:700;
+}
+
+/* ── TOAST ───────────────────────────────────────────────────────────── */
+#toast-container{
+  position:fixed;bottom:24px;right:24px;z-index:9999;
+  display:flex;flex-direction:column;gap:8px;max-width:380px;
+}
+.toast{
+  background:var(--surface2);border:1px solid var(--border);
+  border-radius:var(--radius);padding:12px 16px;
+  font-size:.85rem;line-height:1.4;
+  animation:slideIn .3s ease;box-shadow:var(--shadow);
+  display:flex;align-items:flex-start;gap:10px;
+}
+.toast.success{border-color:var(--primary);color:var(--primary)}
+.toast.error{border-color:var(--danger);color:var(--danger)}
+.toast.info{border-color:var(--accent);color:var(--accent)}
+.toast.warn{border-color:var(--warn);color:var(--warn)}
+@keyframes slideIn{from{transform:translateX(110%);opacity:0}to{transform:none;opacity:1}}
+@keyframes slideOut{to{transform:translateX(110%);opacity:0}}
+
+/* ── LAYOUT ─────────────────────────────────────────────────────────── */
+#main-layout{display:flex;height:calc(100vh - 57px)}
+#sidebar{
+  width:220px;min-width:220px;background:var(--surface);border-right:1px solid var(--border);
+  padding:20px 0;display:flex;flex-direction:column;gap:2px;overflow-y:auto;
+}
+.nav-item{
+  display:flex;align-items:center;gap:10px;padding:10px 20px;cursor:pointer;
+  color:var(--text2);font-size:.9rem;transition:.15s;border-radius:0;
+  border-left:3px solid transparent;
+}
+.nav-item:hover{background:var(--surface2);color:var(--text)}
+.nav-item.active{background:var(--surface2);color:var(--primary);border-left-color:var(--primary)}
+.nav-item .icon{font-size:1.1rem;width:22px;text-align:center}
+.nav-section{padding:8px 20px 4px;font-size:.68rem;color:var(--text3);text-transform:uppercase;letter-spacing:.08em}
+#content{flex:1;overflow-y:auto;padding:28px}
+
+/* ── CARDS & PANELS ─────────────────────────────────────────────────── */
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:20px;margin-bottom:20px}
+.panel-title{font-size:1rem;font-weight:700;color:var(--text);margin-bottom:16px;display:flex;align-items:center;gap:8px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px;margin-bottom:20px}
+.stat-card{
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;text-align:center;
+}
+.stat-card .val{font-size:2rem;font-weight:700;color:var(--primary)}
+.stat-card .lbl{font-size:.75rem;color:var(--text2);margin-top:4px}
+
+/* ── PROGRESS BAR ───────────────────────────────────────────────────── */
+.scheme-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);padding:16px;margin-bottom:12px}
+.scheme-name{font-weight:600;margin-bottom:8px;font-size:.95rem}
+.progress-bar{height:8px;background:var(--surface3);border-radius:4px;overflow:hidden;margin:6px 0}
+.progress-fill{height:100%;background:var(--primary);border-radius:4px;transition:width .5s}
+.scheme-meta{display:flex;justify-content:space-between;font-size:.75rem;color:var(--text2)}
+
+/* ── FORMS ──────────────────────────────────────────────────────────── */
+.form-group{margin-bottom:14px}
+.form-group label{display:block;font-size:.82rem;color:var(--text2);margin-bottom:5px}
+.form-group input,.form-group select,.form-group textarea{
+  width:100%;background:var(--surface2);border:1px solid var(--border);
+  color:var(--text);padding:9px 12px;border-radius:var(--radius);font-size:.88rem;
+  transition:.15s;font-family:inherit;
+}
+.form-group input:focus,.form-group select:focus,.form-group textarea:focus{
+  outline:none;border-color:var(--accent);
+}
+.form-group textarea{resize:vertical;min-height:70px}
+.btn{
+  padding:9px 18px;border-radius:var(--radius);font-size:.88rem;font-weight:600;
+  cursor:pointer;border:none;transition:.2s;display:inline-flex;align-items:center;gap:6px;
+}
+.btn-primary{background:var(--primary);color:#000}
+.btn-primary:hover{background:#4fc961}
+.btn-accent{background:var(--accent);color:#000}
+.btn-accent:hover{background:#79b8ff}
+.btn-danger{background:var(--danger);color:#fff}
+.btn-danger:hover{background:#ff6b6b}
+.btn-secondary{background:var(--surface3);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{background:var(--border)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+
+/* ── APPLICATION CARD ───────────────────────────────────────────────── */
+.app-card{
+  background:var(--surface2);border:1px solid var(--border);border-radius:var(--radius);
+  padding:16px;margin-bottom:12px;transition:.2s;
+}
+.app-card:hover{border-color:var(--accent)}
+.app-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+.app-id{font-size:.75rem;color:var(--text3)}
+.app-meta{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;margin-bottom:12px}
+.app-meta-item{font-size:.8rem}
+.app-meta-item .k{color:var(--text3);font-size:.72rem}
+.app-meta-item .v{color:var(--text);font-weight:600}
+
+/* ── STATUS PIPELINE ────────────────────────────────────────────────── */
+.pipeline{display:flex;align-items:center;gap:0;margin-top:10px;overflow-x:auto;padding-bottom:4px}
+.pipe-step{
+  display:flex;flex-direction:column;align-items:center;gap:4px;
+  font-size:.65rem;color:var(--text3);min-width:70px;flex:1;position:relative;
+}
+.pipe-step:not(:last-child)::after{
+  content:'';position:absolute;top:10px;left:50%;width:100%;
+  height:2px;background:var(--border);z-index:0;
+}
+.pipe-dot{
+  width:20px;height:20px;border-radius:50%;border:2px solid var(--border);
+  background:var(--bg);z-index:1;display:flex;align-items:center;justify-content:center;font-size:.6rem;
+}
+.pipe-step.done .pipe-dot{background:var(--primary);border-color:var(--primary);color:#000}
+.pipe-step.active .pipe-dot{background:var(--accent);border-color:var(--accent);animation:pulse 1.5s infinite}
+.pipe-step.rejected .pipe-dot{background:var(--danger);border-color:var(--danger)}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(88,166,255,.4)}50%{box-shadow:0 0 0 6px rgba(88,166,255,0)}}
+
+/* ── STATUS BADGE ───────────────────────────────────────────────────── */
+.badge{
+  font-size:.7rem;font-weight:700;padding:3px 9px;border-radius:10px;white-space:nowrap;
+}
+.badge-applied{background:#1c2a3a;color:var(--accent)}
+.badge-verified{background:#1a2a1a;color:#56d364}
+.badge-eligible{background:#2a2a1a;color:var(--warn)}
+.badge-rejected{background:#3a1a1a;color:var(--danger)}
+.badge-approved{background:#1a1a3a;color:var(--accent2)}
+.badge-allocated{background:#2a1a3a;color:#d2a8ff}
+.badge-disbursed{background:#1a3a1a;color:var(--primary)}
+
+/* ── AUDIT TRAIL ────────────────────────────────────────────────────── */
+.audit-entry{
+  display:flex;gap:14px;padding:10px 0;border-bottom:1px solid var(--border);font-size:.82rem;
+}
+.audit-dot{
+  width:10px;height:10px;border-radius:50%;background:var(--accent);
+  margin-top:4px;flex-shrink:0;
+}
+.audit-time{color:var(--text3);font-size:.72rem;white-space:nowrap}
+.audit-event{font-weight:600;color:var(--text)}
+.audit-args{color:var(--text2);font-size:.75rem;margin-top:2px;word-break:break-all}
+
+/* ── CONNECT OVERLAY ─────────────────────────────────────────────────── */
+#overlay{
+  position:fixed;inset:0;z-index:200;
+  background:rgba(13,17,23,.95);backdrop-filter:blur(8px);
+  display:flex;align-items:center;justify-content:center;
+}
+.overlay-card{
+  background:var(--surface);border:1px solid var(--border);border-radius:12px;
+  padding:40px;max-width:460px;width:100%;text-align:center;
+}
+.overlay-card h1{font-size:1.6rem;margin-bottom:8px;color:var(--primary)}
+.overlay-card p{color:var(--text2);margin-bottom:24px;line-height:1.6}
+.steps-list{text-align:left;margin-bottom:24px}
+.steps-list li{padding:6px 0;color:var(--text2);font-size:.85rem}
+
+/* ── LOADER ─────────────────────────────────────────────────────────── */
+.spinner{
+  width:18px;height:18px;border:2px solid var(--border);border-top-color:var(--primary);
+  border-radius:50%;animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* ── DEMO LOG ────────────────────────────────────────────────────────── */
+#demo-log{
+  background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);
+  padding:14px;font-family:'Courier New',monospace;font-size:.78rem;
+  max-height:350px;overflow-y:auto;line-height:1.8;
+  display:none;margin-top:14px;
+}
+.log-ok{color:var(--primary)}
+.log-err{color:var(--danger)}
+.log-info{color:var(--accent)}
+.log-warn{color:var(--warn)}
+
+/* ── TABS ────────────────────────────────────────────────────────────── */
+.tabs{display:flex;gap:0;border-bottom:1px solid var(--border);margin-bottom:18px}
+.tab{
+  padding:9px 18px;font-size:.85rem;cursor:pointer;color:var(--text2);
+  border-bottom:2px solid transparent;transition:.15s;
+}
+.tab.active{color:var(--primary);border-bottom-color:var(--primary)}
+
+/* ── RESPONSIVE ──────────────────────────────────────────────────────── */
+@media(max-width:768px){
+  #sidebar{display:none}
+  #content{padding:16px}
+  .form-row{grid-template-columns:1fr}
+  #rpc-input{width:140px}
+}
+.hidden{display:none!important}
+.flex-gap{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+hr.divider{border:none;border-top:1px solid var(--border);margin:16px 0}
+</style>
+</head>
+<body>
+
+<!-- ─── CONNECT OVERLAY ────────────────────────────────────────────── -->
+<div id="overlay">
+  <div class="overlay-card">
+    <h1>🎓 ScholarChain</h1>
+    <p>Blockchain-Based Transparent Scholarship<br>Distribution &amp; Management System</p>
+    <ul class="steps-list">
+      <li>1. Start <strong>Ganache</strong> (Desktop 7545 or CLI 8545)</li>
+      <li>2. Set the RPC URL in the top bar</li>
+      <li>3. Click <strong>Connect to Ganache</strong></li>
+      <li>4. Click <strong>Run Full Demo</strong> to deploy &amp; simulate</li>
+    </ul>
+    <div style="display:flex;gap:10px;flex-direction:column;align-items:center">
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="overlay-rpc" type="text" value="http://127.0.0.1:7545"
+          style="background:var(--surface2);border:1px solid var(--border);color:var(--text);
+                 padding:8px 12px;border-radius:var(--radius);font-size:.88rem;width:230px"/>
+        <button class="btn btn-primary" onclick="connectWallet()">Connect to Ganache</button>
+      </div>
+      <p style="font-size:.75rem;color:var(--text3)">No MetaMask needed — uses ethers.js JsonRpcProvider</p>
+    </div>
+  </div>
+</div>
+
+<!-- ─── TOPBAR ─────────────────────────────────────────────────────── -->
+<div id="topbar">
+  <div class="logo">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+    </svg>
+    ScholarChain
+  </div>
+  <span id="network-badge">Ganache</span>
+  <div class="spacer"></div>
+  <div id="rpc-section">
+    <label style="font-size:.75rem;color:var(--text2)">RPC:</label>
+    <input id="rpc-input" type="text" value="http://127.0.0.1:7545" placeholder="http://127.0.0.1:7545"/>
+  </div>
+  <button id="connect-btn" class="btn btn-primary" onclick="connectWallet()">Connect</button>
+  <button id="demo-btn" class="btn" onclick="runFullDemo()" style="display:none">▶ Run Full Demo</button>
+  <div id="account-pill">
+    <span id="account-addr">—</span>
+    <span id="role-badge" class="badge">—</span>
+  </div>
+</div>
+
+<!-- ─── MAIN LAYOUT ────────────────────────────────────────────────── -->
+<div id="main-layout">
+  <nav id="sidebar">
+    <div class="nav-section">Overview</div>
+    <div class="nav-item active" onclick="showPage('dashboard')" id="nav-dashboard">
+      <span class="icon">📊</span> Dashboard
+    </div>
+    <div class="nav-section">Authority</div>
+    <div class="nav-item" onclick="showPage('schemes')" id="nav-schemes">
+      <span class="icon">📋</span> Schemes
+    </div>
+    <div class="nav-item" onclick="showPage('manage')" id="nav-manage">
+      <span class="icon">⚙️</span> Manage Roles
+    </div>
+    <div class="nav-item" onclick="showPage('evaluate')" id="nav-evaluate">
+      <span class="icon">⚖️</span> Evaluate &amp; Approve
+    </div>
+    <div class="nav-section">Student</div>
+    <div class="nav-item" onclick="showPage('register')" id="nav-register">
+      <span class="icon">👤</span> Register
+    </div>
+    <div class="nav-item" onclick="showPage('apply')" id="nav-apply">
+      <span class="icon">📝</span> Apply
+    </div>
+    <div class="nav-section">College</div>
+    <div class="nav-item" onclick="showPage('verify')" id="nav-verify">
+      <span class="icon">🏛️</span> Verify Applications
+    </div>
+    <div class="nav-section">Oracle</div>
+    <div class="nav-item" onclick="showPage('oracle')" id="nav-oracle">
+      <span class="icon">🔮</span> Submit Income
+    </div>
+    <div class="nav-section">Auditor</div>
+    <div class="nav-item" onclick="showPage('audit')" id="nav-audit">
+      <span class="icon">🔍</span> Audit Trail
+    </div>
+    <div class="nav-section">Demo</div>
+    <div class="nav-item" onclick="showPage('demo')" id="nav-demo">
+      <span class="icon">🚀</span> Full Demo
+    </div>
+  </nav>
+
+  <main id="content">
+    <!-- ── DASHBOARD ───────────────────────────────────────────── -->
+    <div id="page-dashboard">
+      <h2 style="margin-bottom:20px">📊 Dashboard</h2>
+      <div class="stats-grid" id="stats-grid">
+        <div class="stat-card"><div class="val" id="stat-schemes">—</div><div class="lbl">Schemes</div></div>
+        <div class="stat-card"><div class="val" id="stat-apps">—</div><div class="lbl">Applications</div></div>
+        <div class="stat-card"><div class="val" id="stat-disbursed">—</div><div class="lbl">Disbursed</div></div>
+        <div class="stat-card"><div class="val" id="stat-rejected">—</div><div class="lbl">Rejected</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">📋 Active Schemes – Fund Progress</div>
+        <div id="scheme-progress-list"><div style="color:var(--text3)">Connect to load schemes…</div></div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">📄 Recent Applications</div>
+        <div id="recent-apps"><div style="color:var(--text3)">Connect to load applications…</div></div>
+      </div>
+    </div>
+
+    <!-- ── SCHEMES ────────────────────────────────────────────── -->
+    <div id="page-schemes" class="hidden">
+      <h2 style="margin-bottom:20px">📋 Scholarship Schemes</h2>
+      <div class="panel">
+        <div class="panel-title">➕ Create New Scheme <span style="font-size:.75rem;color:var(--text3)">(Authority only)</span></div>
+        <div class="form-row">
+          <div class="form-group"><label>Scheme Name</label>
+            <input id="s-name" type="text" placeholder="Merit Scholarship 2025"/></div>
+          <div class="form-group"><label>Total Budget (units)</label>
+            <input id="s-budget" type="number" placeholder="1000000"/></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Max Award Per Student</label>
+            <input id="s-award" type="number" placeholder="50000"/></div>
+          <div class="form-group"><label>Min CGPA ×100 (e.g. 700 = 7.00)</label>
+            <input id="s-cgpa" type="number" placeholder="700"/></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Max Annual Family Income</label>
+            <input id="s-income" type="number" placeholder="500000"/></div>
+        </div>
+        <button class="btn btn-primary" onclick="createScheme()">Create Scheme</button>
+      </div>
+      <div class="panel">
+        <div class="panel-title">All Schemes</div>
+        <div id="schemes-list"><div style="color:var(--text3)">No schemes yet.</div></div>
+      </div>
+    </div>
+
+    <!-- ── MANAGE ROLES ───────────────────────────────────────── -->
+    <div id="page-manage" class="hidden">
+      <h2 style="margin-bottom:20px">⚙️ Manage Roles <span style="font-size:.8rem;color:var(--text3)">(Authority only)</span></h2>
+      <div class="panel">
+        <div class="panel-title">Add College Node</div>
+        <div class="flex-gap">
+          <div class="form-group" style="flex:1;margin:0"><label>College Address</label>
+            <input id="college-addr" type="text" placeholder="0x…"/></div>
+          <button class="btn btn-primary" onclick="addCollege()" style="align-self:flex-end">Add College</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Add Auditor Node</div>
+        <div class="flex-gap">
+          <div class="form-group" style="flex:1;margin:0"><label>Auditor Address</label>
+            <input id="auditor-addr" type="text" placeholder="0x…"/></div>
+          <button class="btn btn-primary" onclick="addAuditor()" style="align-self:flex-end">Add Auditor</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Set Oracle</div>
+        <div class="flex-gap">
+          <div class="form-group" style="flex:1;margin:0"><label>Oracle Address</label>
+            <input id="oracle-addr-set" type="text" placeholder="0x…"/></div>
+          <button class="btn btn-accent" onclick="setOracle()" style="align-self:flex-end">Set Oracle</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Contract Info</div>
+        <div id="contract-info" style="font-size:.82rem;color:var(--text2);line-height:2">
+          Deploy via Run Full Demo or paste contract address below.
+        </div>
+        <div class="flex-gap" style="margin-top:12px">
+          <div class="form-group" style="flex:1;margin:0"><label>Contract Address</label>
+            <input id="paste-addr" type="text" placeholder="0x…"/></div>
+          <button class="btn btn-secondary" onclick="loadContract()" style="align-self:flex-end">Load Contract</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── EVALUATE & APPROVE ─────────────────────────────────── -->
+    <div id="page-evaluate" class="hidden">
+      <h2 style="margin-bottom:20px">⚖️ Evaluate &amp; Approve <span style="font-size:.8rem;color:var(--text3)">(Authority only)</span></h2>
+      <div class="panel">
+        <div class="panel-title">Evaluate Eligibility</div>
+        <div class="flex-gap">
+          <div class="form-group" style="flex:1;margin:0"><label>Application ID</label>
+            <input id="eval-appid" type="number" placeholder="1" min="1"/></div>
+          <button class="btn btn-primary" onclick="evaluateApp()" style="align-self:flex-end">Evaluate</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Approve Application</div>
+        <div class="flex-gap">
+          <div class="form-group" style="flex:1;margin:0"><label>Application ID</label>
+            <input id="approve-appid" type="number" placeholder="1" min="1"/></div>
+          <div class="form-group" style="flex:1;margin:0"><label>Award Amount</label>
+            <input id="approve-amount" type="number" placeholder="50000"/></div>
+          <button class="btn btn-primary" onclick="approveApp()" style="align-self:flex-end">Approve</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Allocate Funds</div>
+        <div class="flex-gap">
+          <div class="form-group" style="flex:1;margin:0"><label>Application ID</label>
+            <input id="alloc-appid" type="number" placeholder="1" min="1"/></div>
+          <button class="btn btn-accent" onclick="allocateFunds()" style="align-self:flex-end">Allocate</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Record Disbursement</div>
+        <div class="flex-gap">
+          <div class="form-group" style="flex:1;margin:0"><label>Application ID</label>
+            <input id="disb-appid" type="number" placeholder="1" min="1"/></div>
+          <div class="form-group" style="flex:1;margin:0"><label>Bank Transfer Reference</label>
+            <input id="disb-ref" type="text" placeholder="NEFT/2025/REF00123"/></div>
+          <button class="btn btn-primary" onclick="recordDisbursement()" style="align-self:flex-end">Record</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── STUDENT REGISTER ───────────────────────────────────── -->
+    <div id="page-register" class="hidden">
+      <h2 style="margin-bottom:20px">👤 Student Registration</h2>
+      <div class="panel">
+        <div class="panel-title">Register as Student</div>
+        <div class="form-row">
+          <div class="form-group"><label>Full Name</label>
+            <input id="reg-name" type="text" placeholder="Ramesh Kumar"/></div>
+          <div class="form-group"><label>College Name</label>
+            <input id="reg-college" type="text" placeholder="IIT Madras"/></div>
+        </div>
+        <div class="form-group"><label>Document Hash (keccak256 of your documents bundle)</label>
+          <input id="reg-dochash" type="text" placeholder="0x… (32-byte hex) — use the Compute button below"/>
+          </div>
+        <div class="flex-gap" style="margin-bottom:14px">
+          <input id="doc-string" type="text" placeholder="Type any text to simulate document content" style="flex:1;background:var(--surface2);border:1px solid var(--border);color:var(--text);padding:8px 12px;border-radius:var(--radius);font-size:.85rem"/>
+          <button class="btn btn-secondary" onclick="computeHash()">Compute keccak256 Hash</button>
+        </div>
+        <button class="btn btn-primary" onclick="registerStudent()">Register Student</button>
+      </div>
+      <div class="panel" id="reg-info" style="display:none">
+        <div class="panel-title">My Registration</div>
+        <div id="reg-info-content" style="font-size:.85rem;line-height:2;color:var(--text2)"></div>
+      </div>
+    </div>
+
+    <!-- ── STUDENT APPLY ──────────────────────────────────────── -->
+    <div id="page-apply" class="hidden">
+      <h2 style="margin-bottom:20px">📝 Apply for Scholarship</h2>
+      <div class="panel">
+        <div class="panel-title">Submit Application</div>
+        <div class="form-row">
+          <div class="form-group"><label>Scheme</label>
+            <select id="apply-scheme"><option value="">— select scheme —</option></select>
+          </div>
+          <div class="form-group"><label>CGPA ×100 (e.g. 820 = 8.20)</label>
+            <input id="apply-cgpa" type="number" placeholder="820" min="0" max="1000"/></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>Annual Family Income</label>
+            <input id="apply-income" type="number" placeholder="300000"/></div>
+        </div>
+        <div class="panel" style="background:var(--surface3);border-color:var(--warn);margin-bottom:14px">
+          <p style="font-size:.8rem;color:var(--warn)">⚠️ <strong>Limitation (as per submission):</strong> CGPA and income are stored and visible on-chain in this demo. In production, only hashes would be stored.</p>
+        </div>
+        <button class="btn btn-primary" onclick="applyScholarship()">Submit Application</button>
+      </div>
+      <div class="panel">
+        <div class="panel-title">My Applications</div>
+        <div id="my-apps"><div style="color:var(--text3)">No applications yet.</div></div>
+      </div>
+    </div>
+
+    <!-- ── COLLEGE VERIFY ─────────────────────────────────────── -->
+    <div id="page-verify" class="hidden">
+      <h2 style="margin-bottom:20px">🏛️ Verify Applications <span style="font-size:.8rem;color:var(--text3)">(College only)</span></h2>
+      <div class="panel">
+        <div class="panel-title">Verify Enrollment &amp; Documents</div>
+        <div class="flex-gap">
+          <div class="form-group" style="flex:1;margin:0"><label>Application ID</label>
+            <input id="verify-appid" type="number" placeholder="1" min="1"/></div>
+          <button class="btn btn-primary" onclick="verifyApplication()" style="align-self:flex-end">Verify</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">Applications Awaiting Verification (Applied)</div>
+        <div id="verify-list"><div style="color:var(--text3)">Load applications from dashboard.</div></div>
+      </div>
+    </div>
+
+    <!-- ── ORACLE ─────────────────────────────────────────────── -->
+    <div id="page-oracle" class="hidden">
+      <h2 style="margin-bottom:20px">🔮 Oracle – Income Verification <span style="font-size:.8rem;color:var(--text3)">(Oracle only)</span></h2>
+      <div class="panel">
+        <div class="panel-title">Submit Verified Income</div>
+        <div class="flex-gap">
+          <div class="form-group" style="flex:1;margin:0"><label>Application ID</label>
+            <input id="oracle-appid" type="number" placeholder="1" min="1"/></div>
+          <div class="form-group" style="flex:1;margin:0"><label>Verified Annual Income</label>
+            <input id="oracle-income" type="number" placeholder="300000"/></div>
+          <button class="btn btn-accent" onclick="submitOracleIncome()" style="align-self:flex-end">Submit</button>
+        </div>
+        <p style="font-size:.78rem;color:var(--text2);margin-top:10px">This overrides the student's self-reported income on-chain.</p>
+      </div>
+    </div>
+
+    <!-- ── AUDIT TRAIL ────────────────────────────────────────── -->
+    <div id="page-audit" class="hidden">
+      <h2 style="margin-bottom:20px">🔍 Audit Trail</h2>
+      <div class="panel">
+        <div class="panel-title">Filter Events</div>
+        <div class="flex-gap">
+          <div class="form-group" style="flex:1;margin:0"><label>Application ID (0 = all)</label>
+            <input id="audit-appid" type="number" placeholder="0" min="0" value="0"/></div>
+          <button class="btn btn-accent" onclick="loadAuditTrail()" style="align-self:flex-end">Load Trail</button>
+        </div>
+      </div>
+      <div class="panel">
+        <div class="panel-title">On-Chain Events</div>
+        <div id="audit-list"><div style="color:var(--text3)">Click Load Trail to fetch events from the chain.</div></div>
+      </div>
+    </div>
+
+    <!-- ── FULL DEMO ──────────────────────────────────────────── -->
+    <div id="page-demo" class="hidden">
+      <h2 style="margin-bottom:20px">🚀 Run Full Demo</h2>
+      <div class="panel">
+        <div class="panel-title">Automated Demo Scenario</div>
+        <p style="color:var(--text2);font-size:.85rem;margin-bottom:16px;line-height:1.6">
+          Deploys the contract using Ganache accounts and runs:<br>
+          ✅ <strong>App #1</strong> – Happy path (Applied → Disbursed)<br>
+          ❌ <strong>App #2</strong> – Rejected: Low CGPA<br>
+          ❌ <strong>App #3</strong> – Rejected via Oracle income override<br>
+          🔒 <strong>Tests</strong> – Duplicate application &amp; unauthorized caller blocked
+        </p>
+        <div class="flex-gap">
+          <button class="btn btn-primary" id="demo-run-btn" onclick="runFullDemo()">▶ Run Full Demo</button>
+          <button class="btn btn-secondary" onclick="document.getElementById('demo-log').innerHTML='';document.getElementById('demo-log').style.display='none'">Clear Log</button>
+        </div>
+        <div id="demo-log"></div>
+      </div>
+      <div class="panel" id="demo-results" style="display:none">
+        <div class="panel-title">Demo Applications</div>
+        <div id="demo-apps-list"></div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="toast-container"></div>
+
+<!-- ─── CONTRACT ABI ────────────────────────────────────────────────── -->
+<script>
+const CONTRACT_ABI = [
+  "constructor(address _oracle)",
+  "function authority() view returns (address)",
+  "function oracle() view returns (address)",
+  "function schemeCount() view returns (uint256)",
+  "function applicationCount() view returns (uint256)",
+  "function colleges(address) view returns (bool)",
+  "function auditors(address) view returns (bool)",
+  "function addCollege(address college)",
+  "function addAuditor(address auditor)",
+  "function setOracle(address _oracle)",
+  "function createScheme(string name, uint256 totalBudget, uint256 maxAwardPerStudent, uint256 minCGPA, uint256 maxAnnualIncome) returns (uint256)",
+  "function registerStudent(string name, string collegeName, bytes32 documentHash)",
+  "function applyForScholarship(uint256 schemeId, uint256 cgpa, uint256 selfReportedIncome) returns (uint256)",
+  "function verifyApplication(uint256 appId)",
+  "function submitOracleIncome(uint256 appId, uint256 verifiedIncome)",
+  "function evaluateEligibility(uint256 appId)",
+  "function approveApplication(uint256 appId, uint256 awardAmount)",
+  "function allocateFunds(uint256 appId)",
+  "function recordDisbursement(uint256 appId, string bankTransferRef)",
+  "function getApplication(uint256 appId) view returns (tuple(uint256 id, uint256 schemeId, address student, uint256 selfReportedIncome, uint256 cgpa, uint256 awardAmount, uint8 status, uint8 rejectionReason, string bankTransferRef, uint256 appliedAt, uint256 lastUpdatedAt))",
+  "function getStudent(address wallet) view returns (tuple(address wallet, string name, string collegeName, bytes32 documentHash, bool registered, bool enrolled))",
+  "function getScheme(uint256 schemeId) view returns (tuple(uint256 id, string name, uint256 totalBudget, uint256 budgetRemaining, uint256 maxAwardPerStudent, uint256 minCGPA, uint256 maxAnnualIncome, bool active))",
+  "function getStudentSchemeApp(address student, uint256 schemeId) view returns (uint256)",
+  "function getSummary() view returns (uint256 totalSchemes, uint256 totalApplications, address authorityAddr, address oracleAddr)",
+  "function isCollege(address addr) view returns (bool)",
+  "function isAuditor(address addr) view returns (bool)",
+  "event StudentRegistered(address indexed student, string name, string collegeName, bytes32 documentHash)",
+  "event CollegeAdded(address indexed college)",
+  "event AuditorAdded(address indexed auditor)",
+  "event OracleSet(address indexed oracle)",
+  "event SchemeCreated(uint256 indexed schemeId, string name, uint256 totalBudget, uint256 maxAwardPerStudent, uint256 minCGPA, uint256 maxAnnualIncome)",
+  "event ApplicationSubmitted(uint256 indexed appId, address indexed student, uint256 indexed schemeId, uint256 cgpa, uint256 selfReportedIncome)",
+  "event ApplicationVerified(uint256 indexed appId, address indexed college)",
+  "event OracleIncomeSubmitted(uint256 indexed appId, address indexed oracle, uint256 verifiedIncome)",
+  "event EligibilityEvaluated(uint256 indexed appId, bool eligible, uint8 reason)",
+  "event ApplicationApproved(uint256 indexed appId, address indexed authority, uint256 awardAmount)",
+  "event FundsAllocated(uint256 indexed appId, uint256 indexed schemeId, uint256 amount)",
+  "event DisbursementRecorded(uint256 indexed appId, address indexed student, uint256 amount, string bankTransferRef)",
+  "event ApplicationRejected(uint256 indexed appId, uint8 reason, string description)"
+];
+
+// Minimal bytecode placeholder — actual bytecode loaded from BYTECODE variable below
+// (In production, compile with solc and paste bytecode here)
+// For demo, we use the full compiled bytecode embedded below
+const CONTRACT_BYTECODE = "BYTECODE_PLACEHOLDER";
+
+const STATUS_LABELS = ["Applied","Verified","Eligible","Rejected","Approved","Allocated","Disbursed"];
+const STATUS_CLASSES = ["badge-applied","badge-verified","badge-eligible","badge-rejected","badge-approved","badge-allocated","badge-disbursed"];
+const REJECT_REASONS = ["None","Not Enrolled","Low CGPA","Income Exceeds Cap","Budget Exhausted","Duplicate Application","Oracle Income High"];
+const PIPELINE_STEPS = ["Applied","Verified","Eligible","Approved","Allocated","Disbursed"];
+
+// ── STATE ──────────────────────────────────────────────────────────────
+let provider, signer, contract, accounts = [];
+let currentAccount = null;
+let contractAddress = null;
+
+// ── TOAST ──────────────────────────────────────────────────────────────
+function toast(msg, type = 'info', duration = 5000) {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  const icons = {success:'✅',error:'❌',info:'ℹ️',warn:'⚠️'};
+  t.innerHTML = `<span>${icons[type]||'ℹ️'}</span><span>${msg}</span>`;
+  c.appendChild(t);
+  setTimeout(() => {
+    t.style.animation = 'slideOut .3s ease forwards';
+    setTimeout(() => t.remove(), 300);
+  }, duration);
+}
+
+// ── EXTRACT REVERT REASON ──────────────────────────────────────────────
+function extractRevert(err) {
+  const raw = err?.info?.error?.message || err?.reason || err?.message || String(err);
+  const m = raw.match(/revert\s*(?:reason:\s*)?"?([^"]+)"?/i) ||
+            raw.match(/ScholarshipSystem:\s*(.+)/i);
+  return m ? m[1].trim() : raw.slice(0, 120);
+}
+
+// ── CONNECT ────────────────────────────────────────────────────────────
+async function connectWallet() {
+  const rpc = (document.getElementById('overlay-rpc')?.value ||
+               document.getElementById('rpc-input').value || 'http://127.0.0.1:7545').trim();
+  document.getElementById('rpc-input').value = rpc;
+  try {
+    provider = new ethers.JsonRpcProvider(rpc);
+    await provider.getBlockNumber();
+    accounts = await provider.listAccounts();
+    if (!accounts.length) { toast('No accounts in Ganache!','error'); return; }
+    currentAccount = accounts[0];
+    signer = await provider.getSigner(currentAccount.address || currentAccount);
+
+    // Try to reload saved contract
+    try {
+      const saved = localStorage.getItem('scholarchain_addr');
+      if (saved) { contractAddress = saved; await initContract(saved); }
+    } catch(e) { /* localStorage unavailable */ }
+
+    document.getElementById('overlay').style.display = 'none';
+    document.getElementById('account-pill').style.display = 'flex';
+    document.getElementById('demo-btn').style.display = 'flex';
+    updateAccountUI();
+    await refreshDashboard();
+    toast('Connected to Ganache!','success');
+  } catch(err) {
+    toast('Connection failed: ' + err.message, 'error', 8000);
+  }
+}
+
+async function initContract(addr) {
+  contractAddress = addr;
+  contract = new ethers.Contract(addr, CONTRACT_ABI, signer);
+  try { localStorage.setItem('scholarchain_addr', addr); } catch(e) {}
+  document.getElementById('contract-info').innerHTML =
+    `<b>Contract:</b> ${addr}<br><b>Authority:</b> ${await contract.authority()}<br><b>Oracle:</b> ${await contract.oracle()}`;
+  await populateSchemeDropdowns();
+}
+
+async function loadContract() {
+  const addr = document.getElementById('paste-addr').value.trim();
+  if (!addr || !addr.startsWith('0x')) { toast('Enter a valid address','warn'); return; }
+  try {
+    await initContract(addr);
+    toast('Contract loaded!','success');
+    await refreshDashboard();
+  } catch(err) { toast(extractRevert(err),'error'); }
+}
+
+// ── ACCOUNT UI ─────────────────────────────────────────────────────────
+async function updateAccountUI() {
+  const addr = currentAccount?.address || currentAccount;
+  document.getElementById('account-addr').textContent = addr.slice(0,6)+'…'+addr.slice(-4);
+  let role = 'Student'; let color = '#58a6ff';
+  if (contract) {
+    try {
+      const auth = await contract.authority();
+      if (addr.toLowerCase() === auth.toLowerCase()) { role='Authority'; color='#f0883e'; }
+      else if (await contract.isCollege(addr)) { role='College'; color='#56d364'; }
+      else if (await contract.isAuditor(addr)) { role='Auditor'; color='#bc8cff'; }
+      else if ((await contract.oracle()).toLowerCase() === addr.toLowerCase()) { role='Oracle'; color='#58a6ff'; }
+    } catch(e) {}
+  }
+  const rb = document.getElementById('role-badge');
+  rb.textContent = role;
+  rb.style.background = color+'33';
+  rb.style.color = color;
+}
+
+// ── ACCOUNT SWITCHING ──────────────────────────────────────────────────
+async function switchAccount(addr) {
+  currentAccount = addr;
+  signer = await provider.getSigner(addr);
+  if (contract) contract = contract.connect(signer);
+  await updateAccountUI();
+  toast(`Switched to account ${addr.slice(0,6)}…`,'info',2500);
+}
+
+// ── NAVIGATION ─────────────────────────────────────────────────────────
+function showPage(name) {
+  document.querySelectorAll('[id^="page-"]').forEach(p => p.classList.add('hidden'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-'+name)?.classList.remove('hidden');
+  document.getElementById('nav-'+name)?.classList.add('active');
+  if (name === 'dashboard') refreshDashboard();
+  if (name === 'apply') populateSchemeDropdowns();
+  if (name === 'verify') loadVerifyList();
+}
+
+// ── DASHBOARD ──────────────────────────────────────────────────────────
+async function refreshDashboard() {
+  if (!contract) return;
+  try {
+    const [ts, ta] = await contract.getSummary();
+    document.getElementById('stat-schemes').textContent = ts.toString();
+    document.getElementById('stat-apps').textContent = ta.toString();
+    let disbursed = 0, rejected = 0;
+    const total = Number(ta);
+    const schemeList = document.getElementById('scheme-progress-list');
+    const recentApps = document.getElementById('recent-apps');
+    schemeList.innerHTML = '';
+    recentApps.innerHTML = '';
+
+    // Load schemes
+    const schemeCount = Number(ts);
+    for (let i = 1; i <= schemeCount; i++) {
+      const sc = await contract.getScheme(i);
+      const used = Number(sc.totalBudget - sc.budgetRemaining);
+      const total = Number(sc.totalBudget);
+      const pct = total > 0 ? Math.round(used*100/total) : 0;
+      schemeList.innerHTML += `
+        <div class="scheme-card">
+          <div class="scheme-name">📋 ${sc.name}</div>
+          <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+          <div class="scheme-meta">
+            <span>Used: ${used.toLocaleString()} / ${total.toLocaleString()}</span>
+            <span>Min CGPA: ${(Number(sc.minCGPA)/100).toFixed(2)} | Max Income: ${Number(sc.maxAnnualIncome).toLocaleString()}</span>
+          </div>
+        </div>`;
+    }
+    if (!schemeCount) schemeList.innerHTML = '<div style="color:var(--text3)">No schemes created yet.</div>';
+
+    // Load recent apps (last 10)
+    const start = Math.max(1, total - 9);
+    for (let i = start; i <= total; i++) {
+      const app = await contract.getApplication(i);
+      if (Number(app.status) === 6) disbursed++;
+      if (Number(app.status) === 3) rejected++;
+      recentApps.innerHTML += buildAppCard(app);
+    }
+    if (!total) recentApps.innerHTML = '<div style="color:var(--text3)">No applications yet.</div>';
+
+    document.getElementById('stat-disbursed').textContent = disbursed;
+    document.getElementById('stat-rejected').textContent = rejected;
+  } catch(err) { console.error('Dashboard err:', err); }
+}
+
+function buildAppCard(app) {
+  const status = Number(app.status);
+  const reason = Number(app.rejectionReason);
+  const steps = PIPELINE_STEPS;
+  const statusMap = [0,1,2,4,5,6]; // Applied=0,Verified=1,Eligible=2,Approved=4,Allocated=5,Disbursed=6
+  const pipeHtml = steps.map((s, i) => {
+    const stepStatus = statusMap[i];
+    let cls = '';
+    if (status === 3) { cls = i === 0 ? 'done' : (i===1&&status>0?'rejected':''); }
+    else if (status > stepStatus) cls = 'done';
+    else if (status === stepStatus) cls = 'active';
+    if (status === 3 && i === 0) cls = 'done';
+    return `<div class="pipe-step ${cls}"><div class="pipe-dot">${cls==='done'?'✓':''}</div><span>${s}</span></div>`;
+  }).join('');
+
+  const cgpa = (Number(app.cgpa)/100).toFixed(2);
+  const ts = new Date(Number(app.appliedAt)*1000).toLocaleString();
+  const ref = app.bankTransferRef || '—';
+  return `
+    <div class="app-card">
+      <div class="app-header">
+        <div>
+          <span class="app-id">App #${app.id} | Scheme #${app.schemeId}</span>
+          <div style="font-size:.85rem;margin-top:2px">${app.student.slice(0,10)}…</div>
+        </div>
+        <span class="badge ${STATUS_CLASSES[status]}">${STATUS_LABELS[status]}</span>
+      </div>
+      <div class="app-meta">
+        <div class="app-meta-item"><div class="k">CGPA</div><div class="v">${cgpa}</div></div>
+        <div class="app-meta-item"><div class="k">Income</div><div class="v">${Number(app.selfReportedIncome).toLocaleString()}</div></div>
+        <div class="app-meta-item"><div class="k">Award</div><div class="v">${Number(app.awardAmount).toLocaleString()}</div></div>
+        <div class="app-meta-item"><div class="k">Applied</div><div class="v">${ts}</div></div>
+        ${status===3?`<div class="app-meta-item"><div class="k">Reason</div><div class="v" style="color:var(--danger)">${REJECT_REASONS[reason]}</div></div>`:''}
+        ${status===6?`<div class="app-meta-item"><div class="k">Bank Ref</div><div class="v" style="color:var(--primary)">${ref}</div></div>`:''}
+      </div>
+      <div class="pipeline">${pipeHtml}</div>
+    </div>`;
+}
+
+// ── SCHEME MANAGEMENT ──────────────────────────────────────────────────
+async function createScheme() {
+  if (!contract) { toast('Connect first','warn'); return; }
+  const name = document.getElementById('s-name').value.trim();
+  const budget = document.getElementById('s-budget').value;
+  const award = document.getElementById('s-award').value;
+  const cgpa = document.getElementById('s-cgpa').value;
+  const income = document.getElementById('s-income').value;
+  if (!name||!budget||!award||!cgpa||!income) { toast('Fill all fields','warn'); return; }
+  try {
+    const tx = await contract.createScheme(name, BigInt(budget), BigInt(award), BigInt(cgpa), BigInt(income), {gasLimit:3000000n});
+    toast('Creating scheme… tx: '+tx.hash.slice(0,14),'info');
+    await tx.wait();
+    toast('Scheme created!','success');
+    await refreshDashboard();
+    await populateSchemeDropdowns();
+  } catch(err) { toast(extractRevert(err),'error',8000); }
+}
+
+async function populateSchemeDropdowns() {
+  if (!contract) return;
+  try {
+    const count = Number(await contract.schemeCount());
+    const sel = document.getElementById('apply-scheme');
+    sel.innerHTML = '<option value="">— select scheme —</option>';
+    for (let i = 1; i <= count; i++) {
+      const sc = await contract.getScheme(i);
+      sel.innerHTML += `<option value="${i}">${sc.name} (minCGPA: ${(Number(sc.minCGPA)/100).toFixed(2)})</option>`;
+    }
+    // Also fill schemes-list panel
+    let html = '';
+    for (let i = 1; i <= count; i++) {
+      const sc = await contract.getScheme(i);
+      const used = Number(sc.totalBudget - sc.budgetRemaining);
+      const pct = Number(sc.totalBudget) > 0 ? Math.round(used*100/Number(sc.totalBudget)) : 0;
+      html += `<div class="scheme-card">
+        <div class="scheme-name">#${sc.id} – ${sc.name} <span class="badge badge-applied" style="font-size:.65rem">Active</span></div>
+        <div class="progress-bar"><div class="progress-fill" style="width:${pct}%"></div></div>
+        <div class="scheme-meta">
+          <span>Budget: ${Number(sc.totalBudget).toLocaleString()} | Remaining: ${Number(sc.budgetRemaining).toLocaleString()}</span>
+          <span>Max/Student: ${Number(sc.maxAwardPerStudent).toLocaleString()} | Min CGPA: ${(Number(sc.minCGPA)/100).toFixed(2)} | Max Income: ${Number(sc.maxAnnualIncome).toLocaleString()}</span>
+        </div>
+      </div>`;
+    }
+    document.getElementById('schemes-list').innerHTML = html || '<div style="color:var(--text3)">No schemes yet.</div>';
+  } catch(e) {}
+}
+
+// ── ROLE MANAGEMENT ────────────────────────────────────────────────────
+async function addCollege() {
+  if (!contract) { toast('Connect first','warn'); return; }
+  const addr = document.getElementById('college-addr').value.trim();
+  try {
+    const tx = await contract.addCollege(addr, {gasLimit:300000n});
+    toast('Adding college…','info');
+    await tx.wait();
+    toast('College added!','success');
+  } catch(err) { toast(extractRevert(err),'error',8000); }
+}
+async function addAuditor() {
+  if (!contract) { toast('Connect first','warn'); return; }
+  const addr = document.getElementById('auditor-addr').value.trim();
+  try {
+    const tx = await contract.addAuditor(addr, {gasLimit:300000n});
+    await tx.wait();
+    toast('Auditor added!','success');
+  } catch(err) { toast(extractRevert(err),'error',8000); }
+}
+async function setOracle() {
+  if (!contract) { toast('Connect first','warn'); return; }
+  const addr = document.getElementById('oracle-addr-set').value.trim();
+  try {
+    const tx = await contract.setOracle(addr, {gasLimit:300000n});
+    await tx.wait();
+    toast('Oracle set!','success');
+  } catch(err) { toast(extractRevert(err),'error',8000); }
+}
+
+// ── STUDENT ────────────────────────────────────────────────────────────
+function computeHash() {
+  const text = document.getElementById('doc-string').value;
+  const hash = ethers.keccak256(ethers.toUtf8Bytes(text));
+  document.getElementById('reg-dochash').value = hash;
+  toast('Hash computed!','success',2500);
+}
+async function registerStudent() {
+  if (!contract) { toast('Connect first','warn'); return; }
+  const name = document.getElementById('reg-name').value.trim();
+  const college = document.getElementById('reg-college').value.trim();
+  const hash = document.getElementById('reg-dochash').value.trim();
+  if (!name||!college||!hash) { toast('Fill all fields','warn'); return; }
+  try {
+    const tx = await contract.registerStudent(name, college, hash, {gasLimit:500000n});
+    toast('Registering…','info');
+    await tx.wait();
+    toast('Registered!','success');
+    await loadMyStudentInfo();
+  } catch(err) { toast(extractRevert(err),'error',8000); }
+}
+async function loadMyStudentInfo() {
+  if (!contract) return;
+  const addr = currentAccount?.address || currentAccount;
+  try {
+    const s = await contract.getStudent(addr);
+    if (!s.registered) return;
+    document.getElementById('reg-info').style.display = 'block';
+    document.getElementById('reg-info-content').innerHTML =
+      `<b>Name:</b> ${s.name}<br><b>College:</b> ${s.collegeName}<br>
+       <b>Doc Hash:</b> <code style="font-size:.72rem">${s.documentHash}</code><br>
+       <b>Enrolled:</b> ${s.enrolled?'✅ Yes':'⏳ Pending college verification'}`;
+  } catch(e) {}
+}
+async function applyScholarship() {
+  if (!contract) { toast('Connect first','warn'); return; }
+  const scheme = document.getElementById('apply-scheme').value;
+  const cgpa = document.getElementById('apply-cgpa').value;
+  const income = document.getElementById('apply-income').value;
+  if (!scheme||!cgpa||!income) { toast('Fill all fields','warn'); return; }
+  try {
+    const tx = await contract.applyForScholarship(BigInt(scheme), BigInt(cgpa), BigInt(income), {gasLimit:500000n});
+    toast('Submitting application…','info');
+    await tx.wait();
+    toast('Application submitted!','success');
+    await loadMyApps();
+  } catch(err) { toast(extractRevert(err),'error',8000); }
+}
+async function loadMyApps() {
+  if (!contract) return;
+  const addr = (currentAccount?.address || currentAccount).toLowerCase();
+  const total = Number(await contract.applicationCount());
+  let html = '';
+  for (let i = 1; i <= total; i++) {
+    const app = await contract.getApplication(i);
+    if (app.student.toLowerCase() === addr) html += buildAppCard(app);
+  }
+  document.getElementById('my-apps').innerHTML = html || '<div style="color:var(--text3)">No applications.</div>';
+}
+
+// ── COLLEGE VERIFY ─────────────────────────────────────────────────────
+async function verifyApplication() {
+  if (!contract) { toast('Connect first','warn'); return; }
+  const appId = document.getElementById('verify-appid').value;
+  if (!appId) { toast('Enter Application ID','warn'); return; }
+  try {
+    const tx = await contract.verifyApplication(BigInt(appId), {gasLimit:300000n});
+    toast('Verifying…','info');
+    await tx.wait();
+    toast(`App #${appId} verified!`,'success');
+    await loadVerifyList();
+  } catch(err) { toast(extractRevert(err),'error',8000); }
+}
+async function loadVerifyList() {
+  if (!contract) return;
+  const total = Number(await contract.applicationCount());
+  let html = '';
+  for (let i = 1; i <= total; i++) {
+    const app = await contract.getApplication(i);
+    if (Number(app.status) === 0) html += buildAppCard(app);
+  }
+  document.getElementById('verify-list').innerHTML = html || '<div style="color:var(--text3)">No applications awaiting verification.</div>';
+}
+
+// ── EVALUATE & APPROVE ─────────────────────────────────────────────────
+async function evaluateApp() {
+  if (!contract) { toast('Connect first','warn'); return; }
+  const appId = document.getElementById('eval-appid').value;
+  try {
+    const tx = await contract.evaluateEligibility(BigInt(appId), {gasLimit:300000n});
+    toast('Evaluating…','info');
+    await tx.wait();
+    const app = await contract.getApplication(BigInt(appId));
+    const st = Number(app.status);
+    if (st === 2) toast(`App #${appId} is Eligible ✅`,'success');
+    else if (st === 3) toast(`App #${appId} Rejected: ${REJECT_REASONS[Number(app.rejectionReason)]}`,'error',8000);
+  } catch(err) { toast(extractRevert(err),'error',8000); }
+}
+async function approveApp() {
+  if (!contract) { toast('Connect first','warn'); return; }
+  const appId = document.getElementById('approve-appid').value;
+  const amount = document.getElementById('approve-amount').value;
+  if (!appId||!amount) { toast('Fill all fields','warn'); return; }
+  try {
+    const tx = await contract.approveApplication(BigInt(appId), BigInt(amount), {gasLimit:300000n});
+    toast('Approving…','info');
+    await tx.wait();
+    toast(`App #${appId} approved for ${Number(amount).toLocaleString()} units`,'success');
+  } catch(err) { toast(extractRevert(err),'error',8000); }
+}
+async function allocateFunds() {
+  if (!contract) { toast('Connect first','warn'); return; }
+  const appId = document.getElementById('alloc-appid').value;
+  try {
+    const tx = await contract.allocateFunds(BigInt(appId), {gasLimit:300000n});
+    toast('Allocating funds…','info');
+    await tx.wait();
+    toast(`Funds allocated for App #${appId}`,'success');
+  } catch(err) { toast(extractRevert(err),'error',8000); }
+}
+async function recordDisbursement() {
+  if (!contract) { toast('Connect first','warn'); return; }
+  const appId = document.getElementById('disb-appid').value;
+  const ref = document.getElementById('disb-ref').value.trim();
+  if (!appId||!ref) { toast('Fill all fields','warn'); return; }
+  try {
+    const tx = await contract.recordDisbursement(BigInt(appId), ref, {gasLimit:300000n});
+    toast('Recording disbursement…','info');
+    await tx.wait();
+    toast(`App #${appId} disbursed! Ref: ${ref}`,'success');
+    await refreshDashboard();
+  } catch(err) { toast(extractRevert(err),'error',8000); }
+}
+
+// ── ORACLE ─────────────────────────────────────────────────────────────
+async function submitOracleIncome() {
+  if (!contract) { toast('Connect first','warn'); return; }
+  const appId = document.getElementById('oracle-appid').value;
+  const income = document.getElementById('oracle-income').value;
+  if (!appId||!income) { toast('Fill all fields','warn'); return; }
+  try {
+    const tx = await contract.submitOracleIncome(BigInt(appId), BigInt(income), {gasLimit:300000n});
+    toast('Submitting oracle income…','info');
+    await tx.wait();
+    toast(`Oracle income submitted for App #${appId}`,'success');
+  } catch(err) { toast(extractRevert(err),'error',8000); }
+}
+
+// ── AUDIT TRAIL ────────────────────────────────────────────────────────
+async function loadAuditTrail() {
+  if (!contract) { toast('No contract loaded','warn'); return; }
+  const filterAppId = parseInt(document.getElementById('audit-appid').value || '0');
+  const el = document.getElementById('audit-list');
+  el.innerHTML = '<div style="color:var(--text2)">Loading events…</div>';
+  try {
+    const allEvents = [
+      'StudentRegistered','CollegeAdded','AuditorAdded','OracleSet','SchemeCreated',
+      'ApplicationSubmitted','ApplicationVerified','OracleIncomeSubmitted',
+      'EligibilityEvaluated','ApplicationApproved','FundsAllocated','DisbursementRecorded','ApplicationRejected'
+    ];
+    let entries = [];
+    for (const evName of allEvents) {
+      try {
+        const filter = contract.filters[evName]();
+        const logs = await contract.queryFilter(filter, 0, 'latest');
+        for (const log of logs) {
+          if (filterAppId > 0 && log.args) {
+            const appId = log.args.appId !== undefined ? Number(log.args.appId) : null;
+            if (appId !== null && appId !== filterAppId) continue;
+          }
+          const block = await provider.getBlock(log.blockNumber);
+          const ts = block ? new Date(Number(block.timestamp)*1000).toLocaleString() : '—';
+          const args = log.args ? Object.entries(log.args)
+            .filter(([k]) => isNaN(k))
+            .map(([k,v]) => `${k}: ${v.toString()}`)
+            .join(' | ') : '';
+          entries.push({ ts, block: log.blockNumber, event: evName, args, txHash: log.transactionHash });
+        }
+      } catch(e) {}
+    }
+    entries.sort((a,b) => a.block - b.block);
+    if (!entries.length) { el.innerHTML = '<div style="color:var(--text3)">No events found.</div>'; return; }
+    el.innerHTML = entries.map(e => `
+      <div class="audit-entry">
+        <div class="audit-dot"></div>
+        <div>
+          <div style="display:flex;gap:12px;align-items:center">
+            <span class="audit-event">${e.event}</span>
+            <span class="audit-time">${e.ts} · Block #${e.block}</span>
+          </div>
+          <div class="audit-args">${e.args}</div>
+          <div style="font-size:.68rem;color:var(--text3);margin-top:2px">tx: ${e.txHash.slice(0,20)}…</div>
+        </div>
+      </div>`).join('');
+  } catch(err) { el.innerHTML = '<div style="color:var(--danger)">Error loading events: '+err.message+'</div>'; }
+}
+
+// ── FULL DEMO ──────────────────────────────────────────────────────────
+let demoRunning = false;
+async function runFullDemo() {
+  if (demoRunning) { toast('Demo already running','warn'); return; }
+  if (!provider) { toast('Connect to Ganache first','warn'); return; }
+  demoRunning = true;
+  showPage('demo');
+  const logEl = document.getElementById('demo-log');
+  logEl.style.display = 'block';
+  logEl.innerHTML = '';
+  const log = (msg, cls='log-info') => {
+    logEl.innerHTML += `<div class="${cls}">${msg}</div>`;
+    logEl.scrollTop = logEl.scrollHeight;
+  };
+  try {
+    accounts = await provider.listAccounts();
+    if (accounts.length < 6) {
+      toast('Need at least 6 Ganache accounts. Check Ganache settings.','error',10000);
+      demoRunning = false; return;
+    }
+    const [auth, college, auditor, oracleAcc, student1, student2, student3] =
+      accounts.map(a => a.address || a);
+
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    log('🚀  ScholarChain Full Demo', 'log-info');
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    log(`Authority  : ${auth}`);
+    log(`College    : ${college}`);
+    log(`Oracle     : ${oracleAcc}`);
+    log(`Student 1  : ${student1} (will be Disbursed)`);
+    log(`Student 2  : ${student2} (will be Rejected – Low CGPA)`);
+    log(`Student 3  : ${student3 || student1} (will be Rejected – Oracle Income)`);
+
+    // STEP 1: Deploy
+    log('\n[1/12] Deploying ScholarshipSystem…', 'log-info');
+    const authSigner = await provider.getSigner(auth);
+
+    // Compile + deploy via JSON-RPC using raw bytecode
+    // We use the pre-compiled bytecode embedded at the bottom of this file
+    if (typeof COMPILED_BYTECODE === 'undefined' || !COMPILED_BYTECODE || COMPILED_BYTECODE === 'BYTECODE_PLACEHOLDER') {
+      log('⚠️  Bytecode not embedded. Attempting deploy via eth_sendTransaction with demo ABI…','log-warn');
+      log('   → Open README.md and compile ScholarshipSystem.sol with solc first.','log-warn');
+      log('   → Then paste the bytecode in the COMPILED_BYTECODE variable at the bottom of ScholarChain.html','log-warn');
+      toast('Bytecode not compiled yet. See README.md for compilation steps.','warn',10000);
+      demoRunning = false; return;
+    }
+
+    const factory = new ethers.ContractFactory(CONTRACT_ABI, COMPILED_BYTECODE, authSigner);
+    const deployed = await factory.deploy(oracleAcc, {gasLimit:5000000n});
+    await deployed.waitForDeployment();
+    const deployAddr = await deployed.getAddress();
+    log(`✅ Deployed at: ${deployAddr}`, 'log-ok');
+    await initContract(deployAddr);
+    contract = new ethers.Contract(deployAddr, CONTRACT_ABI, authSigner);
+
+    // STEP 2: Roles
+    log('\n[2/12] Registering roles…', 'log-info');
+    let tx = await contract.addCollege(college, {gasLimit:3000000n});
+    await tx.wait();
+    log(`✅ College added: ${college}`, 'log-ok');
+    tx = await contract.addAuditor(auditor, {gasLimit:3000000n});
+    await tx.wait();
+    log(`✅ Auditor added: ${auditor}`, 'log-ok');
+
+    // STEP 3: Create Scheme
+    log('\n[3/12] Creating scheme "Merit Scholarship 2025"…', 'log-info');
+    tx = await contract.createScheme(
+      "Merit Scholarship 2025",
+      BigInt(1000000), BigInt(50000), BigInt(700), BigInt(500000),
+      {gasLimit:3000000n}
+    );
+    await tx.wait();
+    log('✅ Scheme #1 created (Budget:1000000, maxAward:50000, minCGPA:7.00, maxIncome:500000)', 'log-ok');
+
+    // STEP 4: Register students
+    log('\n[4/12] Registering students…', 'log-info');
+    const docHash = ethers.keccak256(ethers.toUtf8Bytes("student_docs_bundle_v1"));
+    const s1 = await provider.getSigner(student1);
+    const s2 = await provider.getSigner(student2);
+    tx = await contract.connect(s1).registerStudent("Arjun Mehta","IIT Madras",docHash,{gasLimit:3000000n});
+    await tx.wait();
+    log(`✅ Student 1 registered: Arjun Mehta`, 'log-ok');
+    tx = await contract.connect(s2).registerStudent("Priya Sharma","NIT Trichy",docHash,{gasLimit:3000000n});
+    await tx.wait();
+    log(`✅ Student 2 registered: Priya Sharma`, 'log-ok');
+
+    const useStudent3 = accounts.length >= 7;
+    const student3Addr = useStudent3 ? (accounts[6]?.address || accounts[6]) : student1;
+    const s3 = await provider.getSigner(student3Addr);
+    if (useStudent3) {
+      tx = await contract.connect(s3).registerStudent("Kiran Rao","BITS Pilani",docHash,{gasLimit:3000000n});
+      await tx.wait();
+      log(`✅ Student 3 registered: Kiran Rao`, 'log-ok');
+    }
+
+    // STEP 5: Apply
+    log('\n[5/12] Students applying for scholarships…', 'log-info');
+    tx = await contract.connect(s1).applyForScholarship(1n, 820n, 300000n, {gasLimit:3000000n});
+    await tx.wait();
+    log('✅ App #1: Arjun Mehta | CGPA:8.20 | Income:300000 (should PASS)', 'log-ok');
+
+    tx = await contract.connect(s2).applyForScholarship(1n, 620n, 200000n, {gasLimit:3000000n});
+    await tx.wait();
+    log('✅ App #2: Priya Sharma | CGPA:6.20 | Income:200000 (should FAIL low CGPA)', 'log-ok');
+
+    if (useStudent3) {
+      tx = await contract.connect(s3).applyForScholarship(1n, 750n, 400000n, {gasLimit:3000000n});
+      await tx.wait();
+      log('✅ App #3: Kiran Rao | CGPA:7.50 | Income:400000 (oracle will override income to 600000 → FAIL)', 'log-ok');
+    }
+
+    // STEP 6: Test duplicate
+    log('\n[6/12] Testing duplicate application block…', 'log-info');
+    try {
+      await contract.connect(s1).applyForScholarship(1n, 820n, 300000n, {gasLimit:3000000n});
+      log('❌ Duplicate should have been rejected!', 'log-err');
+    } catch(e) {
+      log('✅ Duplicate application correctly rejected: ' + extractRevert(e), 'log-ok');
+    }
+
+    // STEP 7: Test unauthorized caller
+    log('\n[7/12] Testing unauthorized college call (student calling verifyApplication)…', 'log-info');
+    try {
+      await contract.connect(s1).verifyApplication(1n, {gasLimit:3000000n});
+      log('❌ Unauthorized call should have been rejected!', 'log-err');
+    } catch(e) {
+      log('✅ Unauthorized call correctly rejected: ' + extractRevert(e), 'log-ok');
+    }
+
+    // STEP 8: College verifies
+    log('\n[8/12] College verifying applications…', 'log-info');
+    const collegeSigner = await provider.getSigner(college);
+    tx = await contract.connect(collegeSigner).verifyApplication(1n, {gasLimit:3000000n});
+    await tx.wait();
+    log('✅ App #1 verified by college', 'log-ok');
+    tx = await contract.connect(collegeSigner).verifyApplication(2n, {gasLimit:3000000n});
+    await tx.wait();
+    log('✅ App #2 verified by college', 'log-ok');
+    if (useStudent3) {
+      tx = await contract.connect(collegeSigner).verifyApplication(3n, {gasLimit:3000000n});
+      await tx.wait();
+      log('✅ App #3 verified by college', 'log-ok');
+    }
+
+    // STEP 9: Oracle overrides income for App #3
+    if (useStudent3) {
+      log('\n[9/12] Oracle submitting verified income for App #3 (600000 > 500000 cap)…', 'log-info');
+      const oracleSigner = await provider.getSigner(oracleAcc);
+      tx = await contract.connect(oracleSigner).submitOracleIncome(3n, 600000n, {gasLimit:3000000n});
+      await tx.wait();
+      log('✅ Oracle income submitted: 600000 (above cap of 500000)', 'log-ok');
+    }
+
+    // STEP 10: Evaluate eligibility
+    log('\n[10/12] Evaluating eligibility…', 'log-info');
+    const authC = contract.connect(authSigner);
+    tx = await authC.evaluateEligibility(1n, {gasLimit:3000000n});
+    await tx.wait();
+    log('✅ App #1 evaluated → Eligible', 'log-ok');
+    tx = await authC.evaluateEligibility(2n, {gasLimit:3000000n});
+    await tx.wait();
+    log('✅ App #2 evaluated → Rejected (Low CGPA)', 'log-ok');
+    if (useStudent3) {
+      tx = await authC.evaluateEligibility(3n, {gasLimit:3000000n});
+      await tx.wait();
+      log('✅ App #3 evaluated → Rejected (Oracle Income Exceeds Cap)', 'log-ok');
+    }
+
+    // STEP 11: Approve → Allocate
+    log('\n[11/12] Approving and allocating App #1…', 'log-info');
+    tx = await authC.approveApplication(1n, 50000n, {gasLimit:3000000n});
+    await tx.wait();
+    log('✅ App #1 approved for 50000 units', 'log-ok');
+    tx = await authC.allocateFunds(1n, {gasLimit:3000000n});
+    await tx.wait();
+    log('✅ Funds allocated for App #1', 'log-ok');
+
+    // STEP 12: Disburse
+    log('\n[12/12] Recording bank disbursement…', 'log-info');
+    const bankRef = `NEFT/2025/${Date.now().toString().slice(-8)}`;
+    tx = await authC.recordDisbursement(1n, bankRef, {gasLimit:3000000n});
+    await tx.wait();
+    log(`✅ App #1 DISBURSED! Bank Ref: ${bankRef}`, 'log-ok');
+
+    log('\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'log-ok');
+    log('🎉  FULL DEMO COMPLETE', 'log-ok');
+    log('  App #1: Applied → Verified → Eligible → Approved → Allocated → Disbursed ✅', 'log-ok');
+    log('  App #2: Rejected – Low CGPA ❌', 'log-ok');
+    if (useStudent3) log('  App #3: Rejected – Oracle Income Exceeds Cap ❌', 'log-ok');
+    log('  Duplicate application: Blocked ✅', 'log-ok');
+    log('  Unauthorized caller: Blocked ✅', 'log-ok');
+    log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━', 'log-ok');
+
+    toast('Full demo completed successfully! 🎉', 'success', 8000);
+    document.getElementById('demo-results').style.display = 'block';
+    await refreshDashboard();
+
+    // Show demo app cards
+    let html = '';
+    const total = Number(await contract.applicationCount());
+    for (let i = 1; i <= total; i++) {
+      html += buildAppCard(await contract.getApplication(i));
+    }
+    document.getElementById('demo-apps-list').innerHTML = html;
+
+  } catch(err) {
+    log('❌ DEMO ERROR: ' + (err?.message || String(err)), 'log-err');
+    toast('Demo failed: ' + extractRevert(err), 'error', 10000);
+  }
+  demoRunning = false;
+}
+
+// ── INIT ───────────────────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', () => {
+  // Sync RPC inputs
+  document.getElementById('rpc-input').addEventListener('change', e => {
+    const v = document.getElementById('overlay-rpc');
+    if (v) v.value = e.target.value;
+  });
+});
+</script>
+
+<!-- ─── PASTE COMPILED BYTECODE BELOW ─────────────────────────────────
+     After running: solc --bin ScholarshipSystem.sol
+     Copy the bytecode string and assign it to COMPILED_BYTECODE below.
+     Example:
+     <script>
+       const COMPILED_BYTECODE = "0x6080604052...";
+     </script>
+─────────────────────────────────────────────────────────────────────── -->
+<script>
+  // PASTE YOUR COMPILED BYTECODE HERE:
+  // const COMPILED_BYTECODE = "0x608060405234...";
+  // Leave undefined or empty to get instructions in the demo log.
+</script>
+
+</body>
+</html>

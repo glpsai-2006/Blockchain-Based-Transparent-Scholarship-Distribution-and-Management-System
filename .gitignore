@@ -1,0 +1,5 @@
+node_modules/
+database/scholarchain.db
+.env
+build/
+*.log
